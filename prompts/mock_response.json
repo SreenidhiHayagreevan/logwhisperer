@@ -1,0 +1,36 @@
+{
+  "answer": "The account U66 logged into 9 different computers from one machine in about 6 minutes this morning. That fast spread is a common sign of an attacker moving through the network.",
+  "risk": "high",
+  "next_steps": [
+    "Lock account U66@DOM1 and reset its password",
+    "Isolate computer C17693 from the network",
+    "Check computers C1234, C586, and C2516 for unusual programs"
+  ],
+  "sql": "SELECT timestamp, src_user, src_comp, dst_comp, logon_type, result FROM auth_logs WHERE src_user = 'U66@DOM1' AND src_comp != dst_comp AND toHour(timestamp) = 9 ORDER BY timestamp LIMIT 100",
+  "rows": [
+    {"timestamp": "2026-10-08T09:28:14", "src_user": "U66@DOM1", "src_comp": "C17693", "dst_comp": "C1234", "logon_type": "Network", "result": "Success"},
+    {"timestamp": "2026-10-08T09:28:51", "src_user": "U66@DOM1", "src_comp": "C17693", "dst_comp": "C586", "logon_type": "Network", "result": "Success"},
+    {"timestamp": "2026-10-08T09:29:37", "src_user": "U66@DOM1", "src_comp": "C17693", "dst_comp": "C2516", "logon_type": "Network", "result": "Fail"},
+    {"timestamp": "2026-10-08T09:29:40", "src_user": "U66@DOM1", "src_comp": "C17693", "dst_comp": "C2516", "logon_type": "Network", "result": "Success"},
+    {"timestamp": "2026-10-08T09:30:22", "src_user": "U66@DOM1", "src_comp": "C17693", "dst_comp": "C1952", "logon_type": "Network", "result": "Success"},
+    {"timestamp": "2026-10-08T09:31:05", "src_user": "U66@DOM1", "src_comp": "C17693", "dst_comp": "C1732", "logon_type": "Network", "result": "Success"},
+    {"timestamp": "2026-10-08T09:32:18", "src_user": "U66@DOM1", "src_comp": "C17693", "dst_comp": "C2867", "logon_type": "Network", "result": "Success"},
+    {"timestamp": "2026-10-08T09:32:59", "src_user": "U66@DOM1", "src_comp": "C17693", "dst_comp": "C1940", "logon_type": "Network", "result": "Fail"},
+    {"timestamp": "2026-10-08T09:33:41", "src_user": "U66@DOM1", "src_comp": "C17693", "dst_comp": "C3610", "logon_type": "Network", "result": "Success"},
+    {"timestamp": "2026-10-08T09:34:26", "src_user": "U66@DOM1", "src_comp": "C17693", "dst_comp": "C4458", "logon_type": "Network", "result": "Success"}
+  ],
+  "timeline": [
+    {"time": "2026-10-08T09:28:14", "event": "U66@DOM1 logged into C1234 from C17693", "is_attack": 0},
+    {"time": "2026-10-08T09:28:51", "event": "U66@DOM1 logged into C586 from C17693", "is_attack": 0},
+    {"time": "2026-10-08T09:29:37", "event": "Failed login: U66@DOM1 to C2516", "is_attack": 0},
+    {"time": "2026-10-08T09:29:40", "event": "U66@DOM1 logged into C2516 from C17693", "is_attack": 0},
+    {"time": "2026-10-08T09:30:22", "event": "U66@DOM1 logged into C1952 from C17693", "is_attack": 0},
+    {"time": "2026-10-08T09:31:05", "event": "U66@DOM1 logged into C1732 from C17693", "is_attack": 0},
+    {"time": "2026-10-08T09:32:18", "event": "U66@DOM1 logged into C2867 from C17693", "is_attack": 0},
+    {"time": "2026-10-08T09:32:59", "event": "Failed login: U66@DOM1 to C1940", "is_attack": 0},
+    {"time": "2026-10-08T09:33:41", "event": "U66@DOM1 logged into C3610 from C17693", "is_attack": 0},
+    {"time": "2026-10-08T09:34:26", "event": "U66@DOM1 logged into C4458 from C17693", "is_attack": 0}
+  ],
+  "stats": {"rows_scanned": 884736, "query_ms": 142},
+  "guild_session_url": null
+}
