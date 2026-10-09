@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ask } from "./api.js";
+import { ask, backendIsUp } from "./api.js";
 import { useVoice } from "./useVoice.js";
+import { HISTORY_KEY, MaskProvider, maskFor, useSettings } from "./settings.js";
+import { briefingText, speak, stopSpeaking } from "./speech.js";
 import Answer from "./components/Answer.jsx";
 import Timeline from "./components/Timeline.jsx";
 import PushToTalk from "./components/PushToTalk.jsx";
+import Settings from "./components/Settings.jsx";
 import "./App.css";
 
 const DEMO_QUESTIONS = [
@@ -12,11 +15,32 @@ const DEMO_QUESTIONS = [
   "Were there any failed login bursts overnight?",
 ];
 
+function loadHistory(enabled) {
+  if (!enabled) return [];
+  try {
+    return JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
+  } catch {
+    return [];
+  }
+}
+
 export default function App() {
-  const [messages, setMessages] = useState([]);
+  const [settings, updateSettings] = useSettings();
+  const [messages, setMessages] = useState(() => loadHistory(settings.saveHistory));
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
+  const [online, setOnline] = useState(null); // null until the first check
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const scrollRef = useRef(null);
+  const inputRef = useRef(null);
+  const countRef = useRef(messages.length);
+  const autoSpeakRef = useRef(settings.autoSpeak);
+
+  useEffect(() => {
+    countRef.current = messages.length;
+    autoSpeakRef.current = settings.autoSpeak;
+  }, [messages.length, settings.autoSpeak]);
 
   // The newest answer drives the right-hand panel.
   const latest = [...messages].reverse().find((m) => m.role === "agent");
@@ -34,99 +58,202 @@ export default function App() {
         error ? { role: "error", text: error } : { role: "agent", data, isMock },
       ]);
       setBusy(false);
+      // By now the question is counted, so the answer's index (its speech id) is the count.
+      if (!error && autoSpeakRef.current) speak(briefingText(data), countRef.current);
     },
     [busy]
   );
 
   const { listening, interim, error: voiceError, start, stop } = useVoice({ onFinal: send });
 
+  const clearConversation = useCallback(() => {
+    stopSpeaking();
+    setMessages([]);
+    try {
+      localStorage.removeItem(HISTORY_KEY);
+    } catch {
+      /* nothing stored */
+    }
+  }, []);
+
+  // Keep the conversation only if the user asked for that; otherwise wipe any copy.
   useEffect(() => {
-    scrollRef.current?.scrollTo({
-      top: scrollRef.current.scrollHeight,
-      behavior: "smooth",
-    });
+    try {
+      if (settings.saveHistory) {
+        localStorage.setItem(HISTORY_KEY, JSON.stringify(messages));
+      } else {
+        localStorage.removeItem(HISTORY_KEY);
+      }
+    } catch {
+      /* storage blocked or full: history stays in memory */
+    }
+  }, [messages, settings.saveHistory]);
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, busy]);
 
+  // Seconds counter while the agents work, so a 10-second wait reads as progress.
+  useEffect(() => {
+    if (!busy) return;
+    const started = Date.now();
+    const timer = setInterval(() => setElapsed(Math.floor((Date.now() - started) / 1000)), 500);
+    return () => {
+      clearInterval(timer);
+      setElapsed(0);
+    };
+  }, [busy]);
+
+  useEffect(() => {
+    let alive = true;
+    const check = () => backendIsUp().then((up) => alive && setOnline(up));
+    check();
+    const timer = setInterval(check, 20000);
+    return () => {
+      alive = false;
+      clearInterval(timer);
+    };
+  }, []);
+
+  // "/" jumps to the question box from anywhere.
+  useEffect(() => {
+    const onKey = (e) => {
+      const typing = ["INPUT", "TEXTAREA"].includes(document.activeElement?.tagName);
+      if (e.key === "/" && !typing) {
+        e.preventDefault();
+        inputRef.current?.focus();
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
+
+  const closeSettings = useCallback(() => setSettingsOpen(false), []);
+  const showsRows = latest && !latest.data.timeline.length && latest.data.rows.length;
+
   return (
-    <div className="app">
-      <header className="header">
-        <div>
-          <h1 className="header__name">LogWhisperer</h1>
-          <p className="header__tag">Talk to your security logs</p>
-        </div>
-        <span className="header__data">LANL cyber-security events · ClickHouse</span>
-      </header>
-
-      <main className="grid">
-        <section className="panel panel--chat">
-          <div className="chat" ref={scrollRef}>
-            {messages.length === 0 && (
-              <div className="empty">
-                <p className="empty__lead">Ask the logs a question.</p>
-                <div className="empty__chips">
-                  {DEMO_QUESTIONS.map((q) => (
-                    <button key={q} className="chip chip--demo" onClick={() => send(q)}>
-                      {q}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {messages.map((msg, i) =>
-              msg.role === "user" ? (
-                <div key={i} className="bubble bubble--user">
-                  {msg.text}
-                </div>
-              ) : msg.role === "error" ? (
-                <div key={i} className="bubble bubble--agent bubble--error" role="alert">
-                  {msg.text}
-                </div>
-              ) : (
-                <Answer key={i} data={msg.data} isMock={msg.isMock} />
-              )
-            )}
-
-            {busy && (
-              <div className="bubble bubble--agent thinking">
-                <span className="dots"><i /><i /><i /></span>
-                Querying the logs and checking the results. This can take up to a minute…
-              </div>
-            )}
+    <MaskProvider value={maskFor(settings.maskNames)}>
+      <div className="app">
+        <header className="header">
+          <div className="header__left">
+            <span
+              className={`status ${online ? "status--up" : online === false ? "status--down" : ""}`}
+              title="LANL cyber-security events in ClickHouse"
+            >
+              <span className="status__dot" aria-hidden="true" />
+              {online === null ? "Checking…" : online ? "Live data" : "Backend offline"}
+            </span>
+            {settings.maskNames && <span className="chip">Names masked</span>}
           </div>
 
-          {voiceError && <p className="hint hint--warn composer__hint">{voiceError}</p>}
+          <div className="brand">
+            <span className={`brand__mark ${busy ? "is-busy" : ""}`} aria-hidden="true">
+              <i /><i /><i /><i /><i />
+            </span>
+            <div>
+              <h1 className="brand__name">LogWhisperer</h1>
+              <p className="brand__tag">Talk to your security logs</p>
+            </div>
+          </div>
 
-          <form
-            className="composer"
-            onSubmit={(e) => {
-              e.preventDefault();
-              send(draft);
-            }}
-          >
-            <input
-              className="composer__input"
-              value={listening && interim ? interim : draft}
-              onChange={(e) => setDraft(e.target.value)}
-              placeholder="Ask in plain English…"
-              disabled={busy}
-            />
-            <PushToTalk listening={listening} start={start} stop={stop} disabled={busy} />
-            <button className="btn btn--send" type="submit" disabled={busy || !draft.trim()}>
-              Send
+          <div className="header__right">
+            <button className="btn btn--small" onClick={clearConversation} disabled={!messages.length || busy}>
+              New chat
             </button>
-          </form>
-        </section>
+            <div className="header__menu">
+              <button
+                className="btn btn--small"
+                onClick={() => setSettingsOpen((v) => !v)}
+                aria-expanded={settingsOpen}
+              >
+                Settings
+              </button>
+              {settingsOpen && (
+                <Settings
+                  settings={settings}
+                  update={updateSettings}
+                  onClearHistory={clearConversation}
+                  onClose={closeSettings}
+                />
+              )}
+            </div>
+          </div>
+        </header>
 
-        <aside className="panel panel--side">
-          <h2 className="panel__title">
-            {latest && !latest.data.timeline.length && latest.data.rows.length
-              ? "Query results"
-              : "Attacker timeline"}
-          </h2>
-          <Timeline timeline={latest?.data?.timeline} rows={latest?.data?.rows} />
-        </aside>
-      </main>
-    </div>
+        <main className="grid">
+          <section className="panel panel--chat">
+            <div className="chat" ref={scrollRef}>
+              {messages.length === 0 && (
+                <div className="empty">
+                  <span className="empty__glow" aria-hidden="true" />
+                  <p className="empty__lead">Ask the logs a question.</p>
+                  <p className="empty__sub">Hold the mic button to speak, or pick one to start.</p>
+                  <div className="empty__chips">
+                    {DEMO_QUESTIONS.map((q) => (
+                      <button key={q} className="chip chip--demo" onClick={() => send(q)}>
+                        {q}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {messages.map((msg, i) =>
+                msg.role === "user" ? (
+                  <div key={i} className="bubble bubble--user">
+                    {maskFor(settings.maskNames)(msg.text)}
+                  </div>
+                ) : msg.role === "error" ? (
+                  <div key={i} className="bubble bubble--agent bubble--error" role="alert">
+                    {msg.text}
+                  </div>
+                ) : (
+                  <Answer key={i} id={i} data={msg.data} isMock={msg.isMock} />
+                )
+              )}
+
+              {busy && (
+                <div className="bubble bubble--agent thinking" role="status">
+                  <div className="thinking__row">
+                    <span className="dots"><i /><i /><i /></span>
+                    Querying the logs and checking the results…
+                    <span className="thinking__time">{elapsed}s</span>
+                  </div>
+                  <div className="skeleton" aria-hidden="true"><i /><i /><i /></div>
+                </div>
+              )}
+            </div>
+
+            {voiceError && <p className="hint hint--warn composer__hint">{voiceError}</p>}
+
+            <form
+              className="composer"
+              onSubmit={(e) => {
+                e.preventDefault();
+                send(draft);
+              }}
+            >
+              <input
+                ref={inputRef}
+                className="composer__input"
+                value={listening && interim ? interim : draft}
+                onChange={(e) => setDraft(e.target.value)}
+                placeholder="Ask in plain English…  (press / to focus)"
+                disabled={busy}
+              />
+              <PushToTalk listening={listening} start={start} stop={stop} disabled={busy} />
+              <button className="btn btn--send" type="submit" disabled={busy || !draft.trim()}>
+                Send
+              </button>
+            </form>
+          </section>
+
+          <aside className="panel panel--side">
+            <h2 className="panel__title">{showsRows ? "Query results" : "Attacker timeline"}</h2>
+            <Timeline key={messages.length} timeline={latest?.data?.timeline} rows={latest?.data?.rows} />
+          </aside>
+        </main>
+      </div>
+    </MaskProvider>
   );
 }

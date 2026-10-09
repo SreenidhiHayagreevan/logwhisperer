@@ -1,51 +1,43 @@
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import RiskBadge from "./RiskBadge.jsx";
 import ShowSql from "./ShowSql.jsx";
-
-const canSpeak = typeof window !== "undefined" && "speechSynthesis" in window;
+import CopyButton from "./CopyButton.jsx";
+import {
+  briefingText,
+  canSpeak,
+  getSpeakingId,
+  speak,
+  stopSpeaking,
+  subscribeSpeech,
+} from "../speech.js";
+import { useMask } from "../settings.js";
 
 /** One agent answer: plain words, risk, next steps, the stats, the briefing, the SQL. */
-export default function Answer({ data, isMock }) {
-  const [speaking, setSpeaking] = useState(false);
+export default function Answer({ id, data, isMock }) {
+  const speaking = useSyncExternalStore(subscribeSpeech, getSpeakingId) === id;
+  const mask = useMask();
   // No SQL means nothing was queried: an off-topic question or a backend error.
   // Show the message alone, without a risk rating or stats it did not earn.
   const answered = Boolean(data.sql);
-
-  // Stop talking if this answer leaves the screen.
-  useEffect(() => () => canSpeak && window.speechSynthesis.cancel(), []);
-
-  function playBriefing() {
-    const briefing = [data.answer, ...(data.next_steps || [])].join(". ");
-    const utterance = new SpeechSynthesisUtterance(briefing);
-    utterance.lang = "en-US";
-    utterance.rate = 0.95;
-    utterance.onend = () => setSpeaking(false);
-    utterance.onerror = () => setSpeaking(false);
-    window.speechSynthesis.cancel(); // one briefing at a time
-    window.speechSynthesis.speak(utterance);
-    setSpeaking(true);
-  }
-
-  function stopBriefing() {
-    window.speechSynthesis.cancel();
-    setSpeaking(false);
-  }
+  const briefing = briefingText(data);
 
   return (
     <div className="bubble bubble--agent">
-      <div className="bubble__top">
-        {answered && <RiskBadge risk={data.risk} />}
-        {isMock && <span className="chip chip--mock">mock data</span>}
-      </div>
+      {(answered || isMock) && (
+        <div className="bubble__top">
+          {answered && <RiskBadge risk={data.risk} />}
+          {isMock && <span className="chip chip--mock">mock data</span>}
+        </div>
+      )}
 
-      <p className="answer">{data.answer}</p>
+      <p className="answer">{mask(data.answer)}</p>
 
       {data.next_steps?.length > 0 && (
         <div className="steps">
           <h3 className="steps__title">Next steps</h3>
           <ul>
             {data.next_steps.map((step, i) => (
-              <li key={i}>{step}</li>
+              <li key={i}>{mask(step)}</li>
             ))}
           </ul>
         </div>
@@ -60,21 +52,23 @@ export default function Answer({ data, isMock }) {
 
       <div className="bubble__actions">
         {canSpeak && (
-          <button className="btn btn--ghost" onClick={speaking ? stopBriefing : playBriefing}>
+          <button
+            className={`btn btn--ghost ${speaking ? "is-speaking" : ""}`}
+            onClick={speaking ? stopSpeaking : () => speak(briefing, id)}
+          >
+            {speaking && (
+              <span className="bars" aria-hidden="true"><i /><i /><i /><i /></span>
+            )}
             {speaking ? "Stop briefing" : "Play briefing"}
           </button>
         )}
-        <ShowSql sql={data.sql} />
+        <CopyButton text={mask(briefing)} label="Copy answer" />
         {data.guild_session_url && (
-          <a
-            className="link-btn"
-            href={data.guild_session_url}
-            target="_blank"
-            rel="noreferrer"
-          >
+          <a className="link-btn" href={data.guild_session_url} target="_blank" rel="noreferrer">
             View agent log on Guild
           </a>
         )}
+        <ShowSql sql={data.sql} />
       </div>
     </div>
   );

@@ -11,6 +11,7 @@ export default function PushToTalk({ listening, start, stop, disabled }) {
   }
   return (
     <button
+      type="button"
       className={`ptt ${listening ? "ptt--live" : ""}`}
       disabled={disabled}
       onPointerDown={start}
@@ -18,7 +19,11 @@ export default function PushToTalk({ listening, start, stop, disabled }) {
       onPointerLeave={stop}
       onContextMenu={(e) => e.preventDefault()}
     >
-      <span className="ptt__dot" aria-hidden="true" />
+      {listening ? (
+        <span className="bars bars--live" aria-hidden="true"><i /><i /><i /><i /></span>
+      ) : (
+        <span className="ptt__dot" aria-hidden="true" />
+      )}
       {listening ? "Listening — release to ask" : "Hold to talk"}
     </button>
   );

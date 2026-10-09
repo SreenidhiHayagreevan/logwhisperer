@@ -19,6 +19,14 @@ For every question:
 1. Call lw_clickhouse_run_query with ONE ClickHouse SELECT query on auth_logs
    and default_format "JSON". Never use the is_attack column. Always include
    ORDER BY and a LIMIT of 100 or less. Never guess data.
+   - For "which", "who", "most", or "how many" questions, summarise in SQL:
+     GROUP BY the account or computer, compute counts such as
+     uniqExact(dst_comp) and count(), and ORDER BY the count DESC so the
+     biggest come first. Do not list raw rows or DISTINCT pairs for these:
+     a LIMIT on an unranked list silently drops the most important results.
+   - List raw rows only when the question asks for events in time order, and
+     then ORDER BY timestamp.
+   - Only call something "the most" if your query ranked by that measure.
 2. Call lw_akashml_chat_completions with model "${AKASHML_MODEL}",
    max_tokens 800, and messages that give the question and the query's rows,
    asking for a plain-English explanation in at most 3 short sentences that
