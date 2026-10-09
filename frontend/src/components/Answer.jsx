@@ -64,7 +64,10 @@ export default function Answer({ id, data, isMock }) {
             {speaking ? "Stop briefing" : "Play briefing"}
           </button>
         )}
-        <CopyButton text={mask(briefing)} label="Copy answer" />
+        <CopyButton
+          text={mask([data.answer, ...(data.next_steps || [])].join("\n"))}
+          label="Copy answer"
+        />
         {data.guild_session_url && (
           <a className="link-btn" href={data.guild_session_url} target="_blank" rel="noreferrer">
             View agent log on Guild
