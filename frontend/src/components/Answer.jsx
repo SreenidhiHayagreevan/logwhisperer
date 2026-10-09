@@ -7,6 +7,9 @@ const canSpeak = typeof window !== "undefined" && "speechSynthesis" in window;
 /** One agent answer: plain words, risk, next steps, the stats, the briefing, the SQL. */
 export default function Answer({ data, isMock }) {
   const [speaking, setSpeaking] = useState(false);
+  // No SQL means nothing was queried: an off-topic question or a backend error.
+  // Show the message alone, without a risk rating or stats it did not earn.
+  const answered = Boolean(data.sql);
 
   // Stop talking if this answer leaves the screen.
   useEffect(() => () => canSpeak && window.speechSynthesis.cancel(), []);
@@ -31,7 +34,7 @@ export default function Answer({ data, isMock }) {
   return (
     <div className="bubble bubble--agent">
       <div className="bubble__top">
-        <RiskBadge risk={data.risk} />
+        {answered && <RiskBadge risk={data.risk} />}
         {isMock && <span className="chip chip--mock">mock data</span>}
       </div>
 
@@ -48,7 +51,7 @@ export default function Answer({ data, isMock }) {
         </div>
       )}
 
-      {data.stats && (
+      {answered && data.stats && (
         <p className="stats">
           Scanned <strong>{formatRows(data.stats.rows_scanned)} rows</strong> in{" "}
           <strong>{formatMs(data.stats.query_ms)}</strong> · ClickHouse
