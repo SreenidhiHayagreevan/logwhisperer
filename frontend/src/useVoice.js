@@ -14,6 +14,7 @@ export const voiceSupported = Boolean(SpeechRecognition);
 export function useVoice({ onFinal }) {
   const [listening, setListening] = useState(false);
   const [interim, setInterim] = useState("");
+  const [error, setError] = useState("");
   const recRef = useRef(null);
   const finalRef = useRef("");
   const onFinalRef = useRef(onFinal);
@@ -41,6 +42,12 @@ export function useVoice({ onFinal }) {
     rec.onerror = (event) => {
       console.warn("[LogWhisperer] speech error:", event.error);
       setListening(false);
+      // "aborted" and "no-speech" are just a quick tap; the rest need saying.
+      if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+        setError("Microphone is blocked. Allow it in Chrome's address bar, or type the question.");
+      } else if (event.error === "network" || event.error === "audio-capture") {
+        setError("Voice input is not working right now. Type the question instead.");
+      }
     };
     rec.onend = () => {
       setListening(false);
@@ -64,6 +71,7 @@ export function useVoice({ onFinal }) {
   const start = useCallback(() => {
     if (!recRef.current || listening) return;
     finalRef.current = "";
+    setError("");
     try {
       recRef.current.start();
       setListening(true);
@@ -81,5 +89,5 @@ export function useVoice({ onFinal }) {
     }
   }, [listening]);
 
-  return { listening, interim, start, stop };
+  return { listening, interim, error, start, stop };
 }

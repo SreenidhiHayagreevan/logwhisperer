@@ -6,14 +6,21 @@ Owned by Himaja. Wire it into the app in backend/main.py with:
     app.include_router(voice_router)
 
 The API key never leaves the backend; the React app only ever sees audio bytes.
+
+To test the briefing before backend/main.py exists, run this file on its own:
+
+    python -m backend.voice          # serves only /speak, on port 8000
 """
 
 import os
 
 import httpx
+from dotenv import load_dotenv
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import Response
 from pydantic import BaseModel
+
+load_dotenv()
 
 router = APIRouter()
 
@@ -35,12 +42,13 @@ async def speak(req: SpeakRequest) -> Response:
     if not text:
         raise HTTPException(status_code=400, detail="No text to speak.")
 
-    api_key = os.getenv("ELEVENLABS_API_KEY")
+    api_key = (os.getenv("ELEVENLABS_API_KEY") or "").strip()
     if not api_key:
         raise HTTPException(status_code=503, detail="ELEVENLABS_API_KEY is not set.")
 
-    voice_id = os.getenv("ELEVENLABS_VOICE_ID", DEFAULT_VOICE_ID)
-    model_id = os.getenv("ELEVENLABS_MODEL_ID", DEFAULT_MODEL_ID)
+    # `or` rather than a getenv default: a blank line in .env yields "", not None.
+    voice_id = (os.getenv("ELEVENLABS_VOICE_ID") or "").strip() or DEFAULT_VOICE_ID
+    model_id = (os.getenv("ELEVENLABS_MODEL_ID") or "").strip() or DEFAULT_MODEL_ID
 
     payload = {
         "text": text[:MAX_CHARS],
@@ -63,3 +71,20 @@ async def speak(req: SpeakRequest) -> Response:
         raise HTTPException(status_code=502, detail="Text-to-speech failed.")
 
     return Response(content=resp.content, media_type="audio/mpeg")
+
+
+if __name__ == "__main__":
+    # Standalone runner for testing /speak without the rest of the backend.
+    import uvicorn
+    from fastapi import FastAPI
+    from fastapi.middleware.cors import CORSMiddleware
+
+    app = FastAPI()
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["http://localhost:5173"],
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    app.include_router(router)
+    uvicorn.run(app, host="127.0.0.1", port=int(os.getenv("PORT", "8000")))

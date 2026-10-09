@@ -28,14 +28,17 @@ export default function App() {
       setDraft("");
       setBusy(true);
       setMessages((prev) => [...prev, { role: "user", text }]);
-      const { data, isMock } = await ask(text);
-      setMessages((prev) => [...prev, { role: "agent", data, isMock }]);
+      const { data, isMock, error } = await ask(text);
+      setMessages((prev) => [
+        ...prev,
+        error ? { role: "error", text: error } : { role: "agent", data, isMock },
+      ]);
       setBusy(false);
     },
     [busy]
   );
 
-  const { listening, interim, start, stop } = useVoice({ onFinal: send });
+  const { listening, interim, error: voiceError, start, stop } = useVoice({ onFinal: send });
 
   useEffect(() => {
     scrollRef.current?.scrollTo({
@@ -75,6 +78,10 @@ export default function App() {
                 <div key={i} className="bubble bubble--user">
                   {msg.text}
                 </div>
+              ) : msg.role === "error" ? (
+                <div key={i} className="bubble bubble--agent bubble--error" role="alert">
+                  {msg.text}
+                </div>
               ) : (
                 <Answer key={i} data={msg.data} isMock={msg.isMock} />
               )
@@ -87,6 +94,8 @@ export default function App() {
               </div>
             )}
           </div>
+
+          {voiceError && <p className="hint hint--warn composer__hint">{voiceError}</p>}
 
           <form
             className="composer"

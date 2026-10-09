@@ -43,6 +43,12 @@ export default function Timeline({ timeline, rows }) {
           </li>
         ))}
       </ol>
+      {rows?.length > 0 && (
+        <>
+          <h3 className="panel__subtitle">Query results</h3>
+          <ResultsTable rows={rows} />
+        </>
+      )}
     </div>
   );
 }
