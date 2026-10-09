@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ask, backendIsUp } from "./api.js";
 import { useVoice } from "./useVoice.js";
 import { HISTORY_KEY, MaskProvider, maskFor, useSettings } from "./settings.js";
-import { stopSpeaking } from "./speech.js";
+import { briefingText, speak, stopSpeaking } from "./speech.js";
 import Answer from "./components/Answer.jsx";
 import Timeline from "./components/Timeline.jsx";
 import PushToTalk from "./components/PushToTalk.jsx";
@@ -34,6 +34,13 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const scrollRef = useRef(null);
   const inputRef = useRef(null);
+  const countRef = useRef(messages.length);
+  const autoSpeakRef = useRef(settings.autoSpeak);
+
+  useEffect(() => {
+    countRef.current = messages.length;
+    autoSpeakRef.current = settings.autoSpeak;
+  }, [messages.length, settings.autoSpeak]);
 
   // The newest answer drives the right-hand panel.
   const latest = [...messages].reverse().find((m) => m.role === "agent");
@@ -48,11 +55,11 @@ export default function App() {
       const { data, isMock, error } = await ask(text);
       setMessages((prev) => [
         ...prev,
-        error
-          ? { role: "error", text: error }
-          : { role: "agent", data, isMock, fresh: true },
+        error ? { role: "error", text: error } : { role: "agent", data, isMock },
       ]);
       setBusy(false);
+      // By now the question is counted, so the answer's index (its speech id) is the count.
+      if (!error && autoSpeakRef.current) speak(briefingText(data), countRef.current);
     },
     [busy]
   );
@@ -73,8 +80,7 @@ export default function App() {
   useEffect(() => {
     try {
       if (settings.saveHistory) {
-        const plain = messages.map((msg) => ({ ...msg, fresh: undefined }));
-        localStorage.setItem(HISTORY_KEY, JSON.stringify(plain));
+        localStorage.setItem(HISTORY_KEY, JSON.stringify(messages));
       } else {
         localStorage.removeItem(HISTORY_KEY);
       }
@@ -129,15 +135,7 @@ export default function App() {
     <MaskProvider value={maskFor(settings.maskNames)}>
       <div className="app">
         <header className="header">
-          <div className="brand">
-            <span className="brand__mark" aria-hidden="true" />
-            <div>
-              <h1 className="brand__name">LogWhisperer</h1>
-              <p className="brand__tag">Talk to your security logs</p>
-            </div>
-          </div>
-
-          <div className="header__right">
+          <div className="header__left">
             <span
               className={`status ${online ? "status--up" : online === false ? "status--down" : ""}`}
               title="LANL cyber-security events in ClickHouse"
@@ -146,6 +144,19 @@ export default function App() {
               {online === null ? "Checking…" : online ? "Live data" : "Backend offline"}
             </span>
             {settings.maskNames && <span className="chip">Names masked</span>}
+          </div>
+
+          <div className="brand">
+            <span className={`brand__mark ${busy ? "is-busy" : ""}`} aria-hidden="true">
+              <i /><i /><i /><i /><i />
+            </span>
+            <div>
+              <h1 className="brand__name">LogWhisperer</h1>
+              <p className="brand__tag">Talk to your security logs</p>
+            </div>
+          </div>
+
+          <div className="header__right">
             <button className="btn btn--small" onClick={clearConversation} disabled={!messages.length || busy}>
               New chat
             </button>
@@ -174,6 +185,7 @@ export default function App() {
             <div className="chat" ref={scrollRef}>
               {messages.length === 0 && (
                 <div className="empty">
+                  <span className="empty__glow" aria-hidden="true" />
                   <p className="empty__lead">Ask the logs a question.</p>
                   <p className="empty__sub">Hold the mic button to speak, or pick one to start.</p>
                   <div className="empty__chips">
@@ -196,20 +208,18 @@ export default function App() {
                     {msg.text}
                   </div>
                 ) : (
-                  <Answer
-                    key={i}
-                    data={msg.data}
-                    isMock={msg.isMock}
-                    autoSpeak={settings.autoSpeak && msg.fresh && i === messages.length - 1}
-                  />
+                  <Answer key={i} id={i} data={msg.data} isMock={msg.isMock} />
                 )
               )}
 
               {busy && (
                 <div className="bubble bubble--agent thinking" role="status">
-                  <span className="dots"><i /><i /><i /></span>
-                  Querying the logs and checking the results…
-                  <span className="thinking__time">{elapsed}s</span>
+                  <div className="thinking__row">
+                    <span className="dots"><i /><i /><i /></span>
+                    Querying the logs and checking the results…
+                    <span className="thinking__time">{elapsed}s</span>
+                  </div>
+                  <div className="skeleton" aria-hidden="true"><i /><i /><i /></div>
                 </div>
               )}
             </div>

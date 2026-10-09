@@ -1,38 +1,25 @@
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import RiskBadge from "./RiskBadge.jsx";
 import ShowSql from "./ShowSql.jsx";
 import CopyButton from "./CopyButton.jsx";
-import { canSpeak, speak, stopSpeaking } from "../speech.js";
+import {
+  briefingText,
+  canSpeak,
+  getSpeakingId,
+  speak,
+  stopSpeaking,
+  subscribeSpeech,
+} from "../speech.js";
 import { useMask } from "../settings.js";
 
 /** One agent answer: plain words, risk, next steps, the stats, the briefing, the SQL. */
-export default function Answer({ data, isMock, autoSpeak }) {
-  const [speaking, setSpeaking] = useState(false);
+export default function Answer({ id, data, isMock }) {
+  const speaking = useSyncExternalStore(subscribeSpeech, getSpeakingId) === id;
   const mask = useMask();
   // No SQL means nothing was queried: an off-topic question or a backend error.
   // Show the message alone, without a risk rating or stats it did not earn.
   const answered = Boolean(data.sql);
-  const briefing = [data.answer, ...(data.next_steps || [])].join(". ");
-
-  function playBriefing() {
-    speak(briefing, () => setSpeaking(false));
-    setSpeaking(true);
-  }
-
-  function stopBriefing() {
-    stopSpeaking();
-    setSpeaking(false);
-  }
-
-  // Read a fresh answer aloud when the setting is on; stop if it leaves the screen.
-  useEffect(() => {
-    if (autoSpeak && canSpeak) {
-      speak(briefing, () => setSpeaking(false));
-      setSpeaking(true);
-    }
-    return stopSpeaking;
-    // Runs once per answer: later setting changes should not replay it.
-  }, []);
+  const briefing = briefingText(data);
 
   return (
     <div className="bubble bubble--agent">
@@ -67,8 +54,11 @@ export default function Answer({ data, isMock, autoSpeak }) {
         {canSpeak && (
           <button
             className={`btn btn--ghost ${speaking ? "is-speaking" : ""}`}
-            onClick={speaking ? stopBriefing : playBriefing}
+            onClick={speaking ? stopSpeaking : () => speak(briefing, id)}
           >
+            {speaking && (
+              <span className="bars" aria-hidden="true"><i /><i /><i /><i /></span>
+            )}
             {speaking ? "Stop briefing" : "Play briefing"}
           </button>
         )}
