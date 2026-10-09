@@ -1,0 +1,7 @@
+pandas
+pyarrow
+clickhouse-connect
+fastapi
+uvicorn
+openai-agents
+python-dotenv

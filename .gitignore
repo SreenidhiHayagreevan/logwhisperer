@@ -1,0 +1,12 @@
+data/
+*.gz
+*.csv
+*.parquet
+.env
+__pycache__/
+*.pyc
+venv/
+.venv/
+node_modules/
+dist/
+.DS_Store
