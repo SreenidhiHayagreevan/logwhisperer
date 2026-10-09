@@ -3,7 +3,7 @@ import pandas as pd
 
 DATA = Path(__file__).resolve().parent.parent / "data"
 
-START_DAY, END_DAY = 8, 9          # <-- same as slice_auth.py
+START_DAY, END_DAY = 9, 9          # <-- same as slice_auth.py
 start, end = (START_DAY - 1) * 86400, END_DAY * 86400
 
 auth = pd.read_csv(DATA / "auth_slice.csv")
