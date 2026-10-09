@@ -119,7 +119,11 @@ export default function App() {
         </section>
 
         <aside className="panel panel--side">
-          <h2 className="panel__title">Attacker timeline</h2>
+          <h2 className="panel__title">
+            {latest && !latest.data.timeline.length && latest.data.rows.length
+              ? "Query results"
+              : "Attacker timeline"}
+          </h2>
           <Timeline timeline={latest?.data?.timeline} rows={latest?.data?.rows} />
         </aside>
       </main>

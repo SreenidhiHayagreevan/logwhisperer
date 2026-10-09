@@ -107,7 +107,8 @@
 /* ---------- table ---------- */
 .table-wrap { overflow-x: auto; }
 .table { width: 100%; border-collapse: collapse; font-size: 14px; }
-.table th, .table td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--line); }
+.table th, .table td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.table th:first-child, .table td:first-child { padding-left: 0; }
 .table th { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; }
 .table td { font-variant-numeric: tabular-nums; }
 

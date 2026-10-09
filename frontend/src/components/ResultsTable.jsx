@@ -8,7 +8,7 @@ export default function ResultsTable({ rows }) {
         <thead>
           <tr>
             {columns.map((col) => (
-              <th key={col}>{col}</th>
+              <th key={col}>{col.replaceAll("_", " ")}</th>
             ))}
           </tr>
         </thead>
@@ -26,8 +26,25 @@ export default function ResultsTable({ rows }) {
   );
 }
 
+// ClickHouse datetimes arrive as 2026-10-08T01:30:00; show them as "Oct 8, 01:30:00".
+const ISO_DATETIME = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}/;
+
 function formatCell(value) {
   if (value === null || value === undefined) return "—";
+  if (typeof value === "string" && ISO_DATETIME.test(value)) {
+    const date = new Date(value.replace(" ", "T"));
+    if (!Number.isNaN(date.getTime())) {
+      return date.toLocaleString(undefined, {
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false,
+      });
+    }
+  }
+  if (typeof value === "number") return value.toLocaleString();
   if (typeof value === "object") return JSON.stringify(value);
   return String(value);
 }

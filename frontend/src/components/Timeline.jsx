@@ -9,7 +9,6 @@ export default function Timeline({ timeline, rows }) {
     if (rows?.length) {
       return (
         <div className="panel__body">
-          <p className="hint">No timeline for this question — showing the rows.</p>
           <ResultsTable rows={rows} />
         </div>
       );
