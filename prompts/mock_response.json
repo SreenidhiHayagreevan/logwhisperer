@@ -1,0 +1,17 @@
+{
+  "answer": "One account reached many new computers overnight. This looks like an attacker moving through the network.",
+  "risk": "high",
+  "next_steps": ["Lock the account", "Check the computers it reached"],
+  "sql": "SELECT src_user, uniqExact(dst_comp) AS new_computers FROM auth_logs WHERE timestamp >= '2026-10-08 00:00:00' GROUP BY src_user ORDER BY new_computers DESC LIMIT 10",
+  "rows": [
+    { "src_user": "U123@DOM1", "new_computers": 14 },
+    { "src_user": "U748@DOM1", "new_computers": 3 },
+    { "src_user": "U201@DOM1", "new_computers": 2 }
+  ],
+  "timeline": [
+    { "time": "2026-10-08T01:14:00", "event": "U123 logged into C456", "is_attack": 1 },
+    { "time": "2026-10-08T01:16:00", "event": "U123 logged into C612", "is_attack": 1 },
+    { "time": "2026-10-08T01:22:00", "event": "U123 logged into C879", "is_attack": 1 },
+    { "time": "2026-10-08T02:05:00", "event": "U748 logged into C101", "is_attack": 0 }
+  ]
+}
