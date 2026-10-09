@@ -1,15 +1,41 @@
-import time, traceback
+import time, threading, traceback
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from backend.db import run_sql
 from backend.query_agent import answer_with_sql
-from backend.analysis import investigate, explain
+from backend.analysis import analyze
 from backend.timeline import build_timeline
 
 MAX_ROWS = 50
+CACHE_SECONDS = 600
+ERROR_ANSWER = "I couldn't answer that. Try rephrasing the question."
+OFF_TOPIC_ANSWER = ("I can only answer questions about the login logs. "
+                    "Try asking about accounts, computers, or failed logins.")
 
-app = FastAPI(title="LogWhisperer")
+WARMUP_QUERIES = [
+    "SELECT count() FROM auth_logs",
+    "SELECT src_user, uniqExact(dst_comp) AS computers FROM auth_logs "
+    "WHERE src_comp != dst_comp GROUP BY src_user ORDER BY computers DESC LIMIT 5",
+]
+
+_cache = {}  # normalized question -> (expires_at, response)
+
+def _warm_up():
+    for sql in WARMUP_QUERIES:
+        try:
+            print(f"[warmup] {run_sql(sql)['stats']['query_ms']} ms", flush=True)
+        except Exception as e:
+            print(f"[warmup] failed: {e!r}", flush=True)
+
+@asynccontextmanager
+async def lifespan(app):
+    threading.Thread(target=_warm_up, daemon=True).start()
+    yield
+
+app = FastAPI(title="LogWhisperer", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173"],
@@ -20,9 +46,9 @@ app.add_middleware(
 class AskRequest(BaseModel):
     question: str
 
-def _fallback() -> dict:
+def _simple(answer: str) -> dict:
     return {
-        "answer": "I couldn't answer that. Try rephrasing the question.",
+        "answer": answer,
         "risk": "low",
         "next_steps": [],
         "sql": "",
@@ -32,38 +58,53 @@ def _fallback() -> dict:
         "guild_session_url": None,
     }
 
+def _cache_key(question: str) -> str:
+    return " ".join(question.lower().split())
+
+def _answer(question: str) -> dict:
+    t0 = time.time()
+    result = answer_with_sql(question)
+    t1 = time.time()
+
+    if result["sql"] is None:
+        print(f"[ask] off-topic | query {t1 - t0:.2f}s | total {t1 - t0:.2f}s", flush=True)
+        return _simple(OFF_TOPIC_ANSWER)
+
+    rows = result["rows"][:MAX_ROWS]
+    out = analyze(question, result["sql"], rows)
+    t2 = time.time()
+    print(f"[ask] query {t1 - t0:.2f}s | analyze {t2 - t1:.2f}s | total {t2 - t0:.2f}s", flush=True)
+
+    return {
+        "answer": out["answer"],
+        "risk": out["risk"],
+        "next_steps": out["next_steps"],
+        "sql": result["sql"],
+        "rows": rows,
+        "timeline": build_timeline(rows),
+        "stats": result["stats"],
+        "guild_session_url": None,
+    }
+
 @app.get("/health")
 def health():
     return {"ok": True}
 
 @app.post("/ask")
 def ask(req: AskRequest):
+    key = _cache_key(req.question)
+    hit = _cache.get(key)
+    if hit and hit[0] > time.time():
+        print("[ask] cache hit | total 0.00s", flush=True)
+        return hit[1]
+
     t0 = time.time()
     try:
-        result = answer_with_sql(req.question)
-        t1 = time.time()
-        rows = result["rows"][:MAX_ROWS]
-
-        inv = investigate(req.question, result["sql"], rows)
-        t2 = time.time()
-
-        exp = explain(req.question, rows, inv["risk"], inv["findings"])
-        t3 = time.time()
-
-        print(f"[ask] query {t1 - t0:.2f}s | investigate {t2 - t1:.2f}s | "
-              f"explain {t3 - t2:.2f}s | total {t3 - t0:.2f}s", flush=True)
-
-        return {
-            "answer": exp["answer"],
-            "risk": inv["risk"],
-            "next_steps": exp["next_steps"],
-            "sql": result["sql"],
-            "rows": rows,
-            "timeline": build_timeline(rows),
-            "stats": result["stats"],
-            "guild_session_url": None,
-        }
+        response = _answer(req.question)
     except Exception as e:
         print(f"[ask] ERROR after {time.time() - t0:.2f}s: {e!r}", flush=True)
         traceback.print_exc()
-        return _fallback()
+        return _simple(ERROR_ANSWER)
+
+    _cache[key] = (time.time() + CACHE_SECONDS, response)
+    return response

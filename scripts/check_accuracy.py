@@ -8,7 +8,7 @@ sys.path.insert(0, str(ROOT))
 load_dotenv(ROOT / ".env")
 
 from backend.query_agent import answer_with_sql
-from backend.analysis import investigate, explain
+from backend.analysis import analyze
 
 MAX_ROWS = 50   # same cap as /ask
 
@@ -58,10 +58,10 @@ def entities(rows):
 
 def run_pipeline(question):
     result = answer_with_sql(question)
+    if result["sql"] is None:
+        raise ValueError("Model treated the question as off-topic.")
     rows = result["rows"][:MAX_ROWS]
-    inv = investigate(question, result["sql"], rows)
-    exp = explain(question, rows, inv["risk"], inv["findings"])
-    return result, rows, inv, exp
+    return result, rows, analyze(question, result["sql"], rows)
 
 def main():
     bad_accounts, bad_computers = ground_truth()
@@ -74,14 +74,14 @@ def main():
         print(f"Q{i}: {q}")
         start = time.time()
         try:
-            result, rows, inv, exp = run_pipeline(q)
+            result, rows, out = run_pipeline(q)
         except Exception as e:
             print(f"  ERROR: {e!r}\n")
             summary.append((i, "error", 0, 0, 0))
             continue
 
-        print(f"Answer: {exp['answer']}")
-        print(f"Risk: {inv['risk']}")
+        print(f"Answer: {out['answer']}")
+        print(f"Risk: {out['risk']}")
         print(f"SQL: {result['sql']}")
         print(f"rows_scanned: {result['stats']['rows_scanned']:,} | "
               f"query_ms: {result['stats']['query_ms']} | "
@@ -95,7 +95,7 @@ def main():
         found = len(hit_accounts) + len(hit_computers)
         print(f"Matches ground truth: {'yes' if found else 'no'}\n")
 
-        summary.append((i, inv["risk"], len(hit_accounts), len(hit_computers),
+        summary.append((i, out["risk"], len(hit_accounts), len(hit_computers),
                         result["stats"]["query_ms"]))
 
     print("=" * 80)
