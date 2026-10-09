@@ -11,6 +11,7 @@ Ask questions about your security logs in plain English, by voice or text, and g
 > **Risk:** 🔴 High · **Scanned:** 6.1M rows in 235 ms
 
 Built in one day at the **Cyberdefense Hackathon** (October 9, 2026, San Francisco) for the **Attack Intelligence** track.
+<img width="1490" height="840" alt="image" src="https://github.com/user-attachments/assets/3ff36829-1ae6-4c86-9bf8-b359156e568f" />
 
 ---
 
