@@ -43,6 +43,8 @@
 .bubble__actions { display: flex; align-items: center; gap: 14px; margin-top: 12px; flex-wrap: wrap; }
 
 .answer { margin: 0; font-size: 18px; line-height: 1.5; }
+.stats { margin: 12px 0 0; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.stats strong { color: var(--text); font-weight: 600; }
 
 .steps { margin-top: 12px; }
 .steps__title { margin: 0 0 4px; font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); }

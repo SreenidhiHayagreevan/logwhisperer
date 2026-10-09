@@ -1,6 +1,6 @@
 # LogWhisperer
 
-An AI security analyst you can talk to. Ask questions about security logs in plain English, by voice or text, and get a clear answer, a risk rating, a timeline of the attacker's path, and a spoken briefing. Every answer shows the real SQL query behind it.
+An AI security analyst you can talk to. Ask questions about security logs in plain English, by voice or text, and get a clear answer, a risk rating, a timeline of the attacker's path, and a spoken briefing. Every answer shows the real SQL query behind it and how many log rows ClickHouse scanned to produce it.
 
 Built for the Cyberdefense Hackathon (San Francisco, Oct 9 2026), **Attack intelligence** track, by Sreenidhi Hayagreevan and Himaja Sree.
 
@@ -10,18 +10,26 @@ Built for the Cyberdefense Hackathon (San Francisco, Oct 9 2026), **Attack intel
 2. **QueryAgent** turns the question into ClickHouse SQL and runs it.
 3. **InvestigatorAgent** reads the rows, looks for attacker patterns (lateral movement, odd-hour logins, failed-login bursts) and rates the risk as low, medium or high.
 4. **ExplainerAgent** writes a short plain-English answer with next steps.
-5. **The app** shows the answer, the risk badge, the timeline and the SQL, and ElevenLabs reads the briefing aloud.
+5. **The app** shows the answer, the risk badge, the timeline, the SQL and the query stats, and reads the briefing aloud.
 
 The agents have read-only, SELECT-only access to ClickHouse, so they cannot change the logs.
+
+## Sponsors
+
+| Sponsor | Role in LogWhisperer |
+|---|---|
+| ClickHouse | Stores the LANL logs and answers every query; each answer shows rows scanned and query time |
+| AkashML | The open model behind the three agents, through its OpenAI-compatible API |
+| Guild.ai | Hosts and runs agents with a session log of every model and tool call |
 
 ## Stack
 
 | Layer | Tool |
 |---|---|
 | Log storage and search | ClickHouse |
-| Agents | OpenAI Agents SDK |
-| Spoken briefing | ElevenLabs text-to-speech |
-| Voice input | Browser Web Speech API (Chrome) |
+| AI model | AkashML |
+| Agent hosting and audit log | Guild.ai |
+| Voice in and out | Browser Web Speech API (Chrome), no keys |
 | Backend | FastAPI (Python) |
 | Frontend | React + Vite |
 
@@ -56,20 +64,20 @@ If the backend is not running, the app answers from `prompts/mock_response.json`
 
 ## API
 
-Two endpoints on port 8000.
+One endpoint on port 8000.
 
 | Endpoint | Input | Output |
 |---|---|---|
-| `POST /ask` | `{"question": "..."}` | JSON: `answer`, `risk`, `next_steps`, `sql`, `rows`, `timeline` |
-| `POST /speak` | `{"text": "..."}` | `audio/mpeg` |
+| `POST /ask` | `{"question": "..."}` | JSON: `answer`, `risk`, `next_steps`, `sql`, `rows`, `timeline`, `stats`, `guild_session_url` |
 
 `prompts/mock_response.json` is the reference example of the `/ask` response.
 
 ## Repo layout
 
 ```
-backend/     FastAPI app, agents, read-only SQL helper, /speak (voice.py)
-frontend/    React app: chat, push-to-talk, timeline, Show SQL
-prompts/     Schema notes, example queries, mock response
+backend/     FastAPI app, agents, read-only SQL helper
+frontend/    React app: chat, push-to-talk, timeline, Show SQL, stats line
+guild/       Guild.ai agents
+prompts/     Schema notes, example queries, mock response, Guild notes
 scripts/     LANL slicing, labelling and loading
 ```

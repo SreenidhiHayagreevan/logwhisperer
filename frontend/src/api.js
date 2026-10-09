@@ -1,4 +1,4 @@
-// All backend calls live here. Keys stay on the backend; the app never sees them.
+// The one backend call lives here. Keys stay on the backend; the app never sees them.
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000";
 // The three agents can take a while; give up before the audience does.
 const ASK_TIMEOUT_MS = 60000;
@@ -44,18 +44,6 @@ export async function ask(question) {
   }
 }
 
-/** Send text to ElevenLabs via the backend; returns an object URL for an <audio> src. */
-export async function speak(text) {
-  const res = await fetch(`${API_BASE}/speak`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text }),
-  });
-  if (!res.ok) throw new Error(`/speak returned ${res.status}`);
-  const blob = await res.blob();
-  return URL.createObjectURL(blob);
-}
-
 /** Guard every contract field so a missing key can never blank the screen. */
 function normalize(raw) {
   const risk = ["low", "medium", "high"].includes(raw?.risk) ? raw.risk : "low";
@@ -66,5 +54,21 @@ function normalize(raw) {
     sql: raw?.sql || "",
     rows: Array.isArray(raw?.rows) ? raw.rows : [],
     timeline: Array.isArray(raw?.timeline) ? raw.timeline : [],
+    stats: normalizeStats(raw?.stats),
+    guild_session_url: safeUrl(raw?.guild_session_url),
   };
+}
+
+/** Only real numbers reach the stats line; anything else hides it. */
+function normalizeStats(stats) {
+  if (stats?.rows_scanned == null || stats?.query_ms == null) return null;
+  const rows = Number(stats?.rows_scanned);
+  const ms = Number(stats?.query_ms);
+  if (!Number.isFinite(rows) || !Number.isFinite(ms)) return null;
+  return { rows_scanned: rows, query_ms: ms };
+}
+
+/** The link is rendered as an href, so accept https only. */
+function safeUrl(value) {
+  return typeof value === "string" && value.startsWith("https://") ? value : null;
 }
