@@ -44,6 +44,16 @@ export async function ask(question) {
   }
 }
 
+/** True when the backend answers its health check. */
+export async function backendIsUp() {
+  try {
+    const res = await fetch(`${API_BASE}/health`, { signal: AbortSignal.timeout(4000) });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 /** Guard every contract field so a missing key can never blank the screen. */
 function normalize(raw) {
   const risk = ["low", "medium", "high"].includes(raw?.risk) ? raw.risk : "low";

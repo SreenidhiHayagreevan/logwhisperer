@@ -1,10 +1,12 @@
 import ResultsTable from "./ResultsTable.jsx";
+import { useMask } from "../settings.js";
 
 /**
  * The attacker's path in time order. Falls back to the results table when the
  * agents return rows but no timeline, so the panel is never empty-handed.
  */
 export default function Timeline({ timeline, rows }) {
+  const mask = useMask();
   if (!timeline?.length) {
     if (rows?.length) {
       return (
@@ -31,10 +33,11 @@ export default function Timeline({ timeline, rows }) {
           <li
             key={i}
             className={`tl ${Number(event.is_attack) === 1 ? "tl--attack" : ""}`}
+            style={{ animationDelay: `${Math.min(i, 12) * 30}ms` }}
           >
             <time className="tl__time">{formatTime(event.time)}</time>
             <div className="tl__event">
-              {event.event}
+              {mask(event.event)}
               {Number(event.is_attack) === 1 && (
                 <span className="tl__flag">attack</span>
               )}
