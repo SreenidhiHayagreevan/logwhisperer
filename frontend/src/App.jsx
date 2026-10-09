@@ -7,8 +7,8 @@ import PushToTalk from "./components/PushToTalk.jsx";
 import "./App.css";
 
 const DEMO_QUESTIONS = [
-  "Which accounts logged into the most new computers last night?",
-  "Which computers did that account reach, in order?",
+  "Which accounts logged into the most different computers yesterday?",
+  "What did computer C17693 do yesterday, in time order?",
   "Were there any failed login bursts overnight?",
 ];
 
