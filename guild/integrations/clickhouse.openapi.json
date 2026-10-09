@@ -1,0 +1,52 @@
+{
+  "openapi": "3.0.3",
+  "info": { "title": "ClickHouse read-only query", "version": "1.0.0" },
+  "paths": {
+    "/": {
+      "get": {
+        "operationId": "run_query",
+        "summary": "Run one read-only SELECT query against the auth_logs table",
+        "parameters": [
+          {
+            "name": "query",
+            "in": "query",
+            "required": true,
+            "description": "A single ClickHouse SELECT statement. Always include a LIMIT.",
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "default_format",
+            "in": "query",
+            "required": false,
+            "description": "Response format. Use JSON to get rows plus statistics (rows_read, elapsed).",
+            "schema": { "type": "string", "enum": ["JSON"], "default": "JSON" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Query result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+                    "rows": { "type": "integer" },
+                    "statistics": {
+                      "type": "object",
+                      "properties": {
+                        "elapsed": { "type": "number" },
+                        "rows_read": { "type": "integer" },
+                        "bytes_read": { "type": "integer" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
