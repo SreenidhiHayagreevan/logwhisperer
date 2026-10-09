@@ -58,6 +58,9 @@
 .segmented__item { border: 0; background: none; color: var(--muted); padding: 6px 0; border-radius: 7px; font-size: 14px; transition: background-color 0.15s, color 0.15s; }
 .segmented__item.is-on { background: var(--panel); color: var(--text); box-shadow: 0 1px 2px rgb(0 0 0 / 0.18); }
 
+.field { display: grid; gap: 6px; padding: 8px 0 2px; }
+.field__row { display: flex; gap: 8px; }
+.select { flex: 1; min-width: 0; padding: 6px 8px; font: inherit; font-size: 14px; color: var(--text); background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; }
 .toggle { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 6px 0; cursor: pointer; position: relative; }
 .toggle__text { display: flex; flex-direction: column; }
 .toggle__label { font-size: 14px; }

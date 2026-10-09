@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ask, backendIsUp } from "./api.js";
 import { useVoice } from "./useVoice.js";
 import { HISTORY_KEY, MaskProvider, maskFor, useSettings } from "./settings.js";
-import { briefingText, speak, stopSpeaking } from "./speech.js";
+import { briefingText, setPreferredVoice, speak, stopSpeaking } from "./speech.js";
 import Answer from "./components/Answer.jsx";
 import Timeline from "./components/Timeline.jsx";
 import PushToTalk from "./components/PushToTalk.jsx";
@@ -41,6 +41,8 @@ export default function App() {
     countRef.current = messages.length;
     autoSpeakRef.current = settings.autoSpeak;
   }, [messages.length, settings.autoSpeak]);
+
+  useEffect(() => setPreferredVoice(settings.voice), [settings.voice]);
 
   // The newest answer drives the right-hand panel.
   const latest = [...messages].reverse().find((m) => m.role === "agent");

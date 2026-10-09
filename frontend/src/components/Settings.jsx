@@ -1,4 +1,5 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useSyncExternalStore } from "react";
+import { bestVoice, getVoices, setPreferredVoice, speak, subscribeSpeech } from "../speech.js";
 
 const THEMES = [
   { value: "system", label: "System" },
@@ -9,6 +10,12 @@ const THEMES = [
 /** Preferences popover. Everything here is stored in this browser only. */
 export default function Settings({ settings, update, onClearHistory, onClose }) {
   const ref = useRef(null);
+  const voices = useSyncExternalStore(subscribeSpeech, getVoices);
+
+  function previewVoice(name) {
+    setPreferredVoice(name);
+    speak("One account reached many new computers overnight. Here is what I recommend.", "preview");
+  }
 
   useEffect(() => {
     const onKey = (e) => e.key === "Escape" && onClose();
@@ -52,6 +59,35 @@ export default function Settings({ settings, update, onClearHistory, onClose }) 
           checked={settings.autoSpeak}
           onChange={(autoSpeak) => update({ autoSpeak })}
         />
+        {voices.length > 0 && (
+          <div className="field">
+            <label className="toggle__label" htmlFor="voice">Voice</label>
+            <div className="field__row">
+              <select
+                id="voice"
+                className="select"
+                value={settings.voice}
+                onChange={(e) => {
+                  update({ voice: e.target.value });
+                  previewVoice(e.target.value);
+                }}
+              >
+                <option value="">Automatic ({bestVoiceName(settings.voice)})</option>
+                {voices.map((v) => (
+                  <option key={v.name} value={v.name}>
+                    {v.name}
+                  </option>
+                ))}
+              </select>
+              <button className="btn btn--small" onClick={() => previewVoice(settings.voice)}>
+                Preview
+              </button>
+            </div>
+            <span className="toggle__hint">
+              "Google" voices sound the most natural and need an internet connection.
+            </span>
+          </div>
+        )}
       </section>
 
       <section className="settings__group">
@@ -78,6 +114,14 @@ export default function Settings({ settings, update, onClearHistory, onClose }) 
       </section>
     </div>
   );
+}
+
+/** Name of the voice "Automatic" resolves to right now. */
+function bestVoiceName(selected) {
+  if (selected) setPreferredVoice("");
+  const name = bestVoice()?.name || "system default";
+  if (selected) setPreferredVoice(selected);
+  return name;
 }
 
 function Toggle({ label, hint, checked, onChange }) {

@@ -6,6 +6,7 @@ export const HISTORY_KEY = "logwhisperer.history";
 const DEFAULTS = {
   theme: "system", // system | light | dark
   autoSpeak: false, // read each new answer aloud
+  voice: "", // voice name for briefings; "" picks the most natural one available
   maskNames: false, // hide account and computer numbers on screen
   saveHistory: false, // keep the conversation in this browser
 };
