@@ -13,7 +13,7 @@ from backend.guild_client import start_guild_run
 
 MAX_ROWS = 50
 GUILD_WAIT_SECONDS = 5
-CACHE_SECONDS = 600
+CACHE_SECONDS = 3600
 ERROR_ANSWER = "I couldn't answer that. Try rephrasing the question."
 OFF_TOPIC_ANSWER = ("I can only answer questions about the login logs. "
                     "Try asking about accounts, computers, or failed logins.")
@@ -127,5 +127,6 @@ def ask(req: AskRequest):
         traceback.print_exc()
         return _simple(ERROR_ANSWER)
 
-    _cache[key] = (time.time() + CACHE_SECONDS, response)
+    if response["sql"]:  # off-topic replies have no SQL and are not cached
+        _cache[key] = (time.time() + CACHE_SECONDS, response)
     return response

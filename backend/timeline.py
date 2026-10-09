@@ -1,4 +1,5 @@
 import datetime
+from backend.labels import mark_attacks
 
 MAX_EVENTS = 50
 ENTITY_COLS = ("src_user", "src_comp", "dst_comp")
@@ -28,10 +29,14 @@ def build_timeline(rows: list) -> list:
     if not any(c in rows[0] for c in ENTITY_COLS):
         return []
 
-    events = [{"time": _iso(r["timestamp"]), "event": _event_text(r), "is_attack": 0}
+    events = [{"time": _iso(r["timestamp"]), "event": _event_text(r), "is_attack": 0,
+               "_row": {c: r[c] for c in ("timestamp",) + ENTITY_COLS if c in r}}
               for r in rows if r.get("timestamp") is not None]
     events.sort(key=lambda e: e["time"])
-    return events[:MAX_EVENTS]
+    events = mark_attacks(events[:MAX_EVENTS])
+    for e in events:
+        e.pop("_row", None)
+    return events
 
 if __name__ == "__main__":
     from backend.query_agent import answer_with_sql

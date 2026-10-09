@@ -25,13 +25,14 @@ Rules:
 - Never use the is_attack column.
 - Always include ORDER BY and LIMIT (max 100).
 - Prefer returning user, computers, counts, and timestamps so results can be explained.
+- When listing events (individual logins rather than counts), always select timestamp, src_user, src_comp, and dst_comp.
 
 Examples:
 Q: Which accounts logged into the most different computers yesterday?
 {{"sql": "SELECT src_user, uniqExact(dst_comp) AS computers, count() AS logins FROM auth_logs WHERE src_user LIKE 'U%' AND src_comp != dst_comp GROUP BY src_user ORDER BY computers DESC LIMIT 10"}}
 
 Q: Which computers did U66@DOM1 reach, in order?
-{{"sql": "SELECT timestamp, src_comp, dst_comp, logon_type, result FROM auth_logs WHERE src_user = 'U66@DOM1' AND src_comp != dst_comp ORDER BY timestamp LIMIT 100"}}
+{{"sql": "SELECT timestamp, src_user, src_comp, dst_comp, logon_type, result FROM auth_logs WHERE src_user = 'U66@DOM1' AND src_comp != dst_comp ORDER BY timestamp LIMIT 100"}}
 
 Q: Who had the most failed logins?
 {{"sql": "SELECT src_user, count() AS failed FROM auth_logs WHERE result = 'Fail' AND src_user LIKE 'U%' GROUP BY src_user ORDER BY failed DESC LIMIT 10"}}

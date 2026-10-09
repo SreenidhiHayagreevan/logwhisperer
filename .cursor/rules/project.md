@@ -6,7 +6,8 @@ Built at the Cyberdefense Hackathon (Oct 9, 2026). Sponsors used: ClickHouse, Ak
 ## Data
 - ClickHouse Cloud table `auth_logs`: 19,374,688 rows, LANL authentication logs for one day (2026-10-08, "yesterday").
 - Columns: timestamp, time, src_user, dst_user, src_comp, dst_comp, auth_type, logon_type, auth_orientation, result, is_attack.
-- is_attack is HIDDEN GROUND TRUTH (261 attack rows). Agents must NEVER query it. Only test scripts may use it to check accuracy.
+- is_attack is HIDDEN GROUND TRUTH (261 attack rows). Agents must NEVER query or see it.
+- is_attack may be read only by scripts/check_accuracy.py (accuracy checks) and backend/labels.py (display-only timeline labels, applied after the agents have answered). Both use the admin ClickHouse user; everything else uses the read-only user via run_sql.
 - Known attack: source computer C17693, accounts like U66@DOM1 and U293@DOM1, lateral movement around 9:30 AM.
 - Schema notes for prompts: prompts/schema_notes.md
 
