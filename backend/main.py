@@ -1,4 +1,5 @@
 import time, threading, traceback
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -8,8 +9,10 @@ from backend.db import run_sql
 from backend.query_agent import answer_with_sql
 from backend.analysis import analyze
 from backend.timeline import build_timeline
+from backend.guild_client import start_guild_run
 
 MAX_ROWS = 50
+GUILD_WAIT_SECONDS = 5
 CACHE_SECONDS = 600
 ERROR_ANSWER = "I couldn't answer that. Try rephrasing the question."
 OFF_TOPIC_ANSWER = ("I can only answer questions about the login logs. "
@@ -22,6 +25,23 @@ WARMUP_QUERIES = [
 ]
 
 _cache = {}  # normalized question -> (expires_at, response)
+_guild_pool = ThreadPoolExecutor(max_workers=4, thread_name_prefix="guild")
+
+def _start_guild(question: str):
+    try:
+        return _guild_pool.submit(start_guild_run, question)
+    except Exception as e:
+        print(f"[guild] could not start: {e!r}", flush=True)
+        return None
+
+def _guild_url(future):
+    if future is None:
+        return None
+    try:
+        return future.result(timeout=GUILD_WAIT_SECONDS)
+    except Exception as e:
+        print(f"[guild] no session url: {type(e).__name__}", flush=True)
+        return None
 
 def _warm_up():
     for sql in WARMUP_QUERIES:
@@ -63,6 +83,7 @@ def _cache_key(question: str) -> str:
 
 def _answer(question: str) -> dict:
     t0 = time.time()
+    guild = _start_guild(question)
     result = answer_with_sql(question)
     t1 = time.time()
 
@@ -83,7 +104,7 @@ def _answer(question: str) -> dict:
         "rows": rows,
         "timeline": build_timeline(rows),
         "stats": result["stats"],
-        "guild_session_url": None,
+        "guild_session_url": _guild_url(guild),
     }
 
 @app.get("/health")
