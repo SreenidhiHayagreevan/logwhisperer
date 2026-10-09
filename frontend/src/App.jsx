@@ -90,7 +90,7 @@ export default function App() {
             {busy && (
               <div className="bubble bubble--agent thinking">
                 <span className="dots"><i /><i /><i /></span>
-                Querying the logs and checking the results…
+                Querying the logs and checking the results. This can take up to a minute…
               </div>
             )}
           </div>
