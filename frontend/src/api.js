@@ -1,5 +1,8 @@
 // The one backend call lives here. Keys stay on the backend; the app never sees them.
-const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000";
+// Local development talks to the backend on port 8000. A production build is
+// served by the backend itself (see server.py), so it calls its own origin.
+const API_BASE =
+  import.meta.env.VITE_API_BASE ?? (import.meta.env.PROD ? "" : "http://localhost:8000");
 // The three agents can take a while; give up before the audience does.
 const ASK_TIMEOUT_MS = 120000;
 
