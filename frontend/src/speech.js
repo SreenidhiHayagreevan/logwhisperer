@@ -4,7 +4,10 @@ export const canSpeak = typeof window !== "undefined" && "speechSynthesis" in wi
 // One briefing plays at a time. `speakingId` says which answer it belongs to, so
 // that answer's button can show "Stop briefing" however the speech was started.
 let speakingId = null;
+// Set when the browser accepts a briefing but never starts playing it.
+let stuck = false;
 const listeners = new Set();
+const START_TIMEOUT_MS = 4000;
 
 function setSpeaking(id) {
   speakingId = id;
@@ -17,6 +20,7 @@ export function subscribeSpeech(notify) {
 }
 
 export const getSpeakingId = () => speakingId;
+export const getSpeechStuck = () => stuck;
 
 // Chrome can garbage-collect an utterance mid-speech unless something holds it.
 let current = null;
@@ -35,6 +39,14 @@ export function speak(text, id) {
       setSpeaking(null);
     }
   };
+  let started = false;
+  utterance.onstart = () => {
+    started = true;
+    if (stuck) {
+      stuck = false;
+      listeners.forEach((notify) => notify());
+    }
+  };
   utterance.onend = finished;
   utterance.onerror = finished;
 
@@ -50,6 +62,16 @@ export function speak(text, id) {
   // Chrome drops a speak() issued in the same tick as a cancel() that stopped something.
   if (wasBusy) setTimeout(start, 150);
   else start();
+
+  // If playback never begins, stop pretending: clear the state and say so.
+  setTimeout(() => {
+    if (current === utterance && !started) {
+      current = null;
+      synth.cancel();
+      stuck = true;
+      setSpeaking(null);
+    }
+  }, START_TIMEOUT_MS);
 }
 
 export function stopSpeaking() {

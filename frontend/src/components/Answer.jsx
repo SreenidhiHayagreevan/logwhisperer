@@ -6,6 +6,7 @@ import {
   briefingText,
   canSpeak,
   getSpeakingId,
+  getSpeechStuck,
   speak,
   stopSpeaking,
   subscribeSpeech,
@@ -15,6 +16,7 @@ import { useMask } from "../settings.js";
 /** One agent answer: plain words, risk, next steps, the stats, the briefing, the SQL. */
 export default function Answer({ id, data, isMock }) {
   const speaking = useSyncExternalStore(subscribeSpeech, getSpeakingId) === id;
+  const voiceStuck = useSyncExternalStore(subscribeSpeech, getSpeechStuck);
   const mask = useMask();
   // No SQL means nothing was queried: an off-topic question or a backend error.
   // Show the message alone, without a risk rating or stats it did not earn.
@@ -70,6 +72,12 @@ export default function Answer({ id, data, isMock }) {
         )}
         <ShowSql sql={data.sql} />
       </div>
+
+      {voiceStuck && (
+        <p className="hint hint--warn">
+          The browser's voice did not start. Quit Chrome completely and reopen it, then try again.
+        </p>
+      )}
     </div>
   );
 }
